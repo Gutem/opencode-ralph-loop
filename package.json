@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json.schemastore.org/package.json",
+  "name": "opencode-ralph-loop",
+  "version": "0.1.0",
+  "description": "Ralph-style loop plugin for OpenCode: same task in a fresh session per iteration, until a completion marker or max iterations",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Gutem/opencode-ralph-loop.git"
+  },
+  "exports": {
+    ".": "./index.ts",
+    "./server": "./index.ts"
+  },
+  "files": ["index.ts", "state.ts", "README.md", "LICENSE"],
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@opencode/plugin": "^2.0.27 || ^2.2.5 || ^0.0.0-dev"
+  },
+  "devDependencies": {
+    "@opencode/plugin": "^2.2.5",
+    "@tsconfig/bun": "1.0.9",
+    "@types/bun": "1.4.3",
+    "typescript": "5.9.3"
+  }
+}
