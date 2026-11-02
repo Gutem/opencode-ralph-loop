@@ -50,10 +50,10 @@ Cancel with:
 
 ## Behavior
 
-- The parent Session stores the loop state; each iteration creates a new child
-  Session and prompts it with the task and the iteration number.
-- The task is also a session instruction entry on the parent and on each child,
-  so compaction does not lose it.
+- The parent Session stores the loop state. The command starts the loop in the
+  background: create a child Session, prompt it with the task and iteration
+  number, wait for it to go idle, read its answer, then start the next child.
+- Each child Session starts with a clean context and receives the task again.
 - Before each continuation the plugin reads the child's assistant messages and
   checks the completion marker.
 - Child Sessions are kept after the loop for audit; they are normal Sessions and

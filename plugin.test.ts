@@ -25,7 +25,6 @@ function harness() {
       },
     },
     session: {
-      instructions: { entry: { put: async () => {}, remove: async () => {} } },
       create: async (input?: { title?: string }) => {
         const id = `child_${++next}`
         children.push({ id, title: input?.title })
@@ -34,6 +33,7 @@ function harness() {
       prompt: async (input: { sessionID: string; text: string }) => {
         prompts.push(input)
       },
+      wait: async () => {},
       interrupt: async (input: { sessionID: string }) => {
         interrupted.push(input.sessionID)
       },
@@ -69,41 +69,33 @@ describe("ralph-loop plugin", () => {
   test("cada iteração roda em uma sessão nova até o marker", async () => {
     const h = harness()
     await plugin.setup(h.ctx)
+    h.setMessages("child_1", [{ type: "assistant", content: [{ type: "text", text: "still working" }] }])
+    h.setMessages("child_2", [{ type: "assistant", content: [{ type: "text", text: "done DONE" }] }])
     await h.commands.get("ralph-loop")!.execute({
       sessionID: "ses_parent",
       prompt: { text: "fix tests --completion-promise DONE --max-iterations 3" },
       delivery: "steer",
     })
-
-    expect(h.children).toEqual([{ id: "child_1", title: "Ralph 1/3" }])
-    expect(h.prompts[0]?.sessionID).toBe("child_1")
-    expect(h.prompts[0]?.text).toContain("fix tests")
-    expect(h.store.get("session:ses_parent")).toMatchObject({ iteration: 0, status: "active", childID: "child_1" })
-
-    h.setMessages("child_1", [{ type: "assistant", content: [{ type: "text", text: "still working" }] }])
-    await h.idle({ sessionID: "child_1", background: [] })
+    await new Promise((resolve) => setTimeout(resolve, 20))
 
     expect(h.children.map((c) => c.id)).toEqual(["child_1", "child_2"])
+    expect(h.children[0]?.title).toBe("Ralph 1/3")
+    expect(h.children[1]?.title).toBe("Ralph 2/3")
+    expect(h.prompts[0]?.text).toContain("fix tests")
     expect(h.prompts[1]?.text).toContain("iteration 1/3")
-    expect(h.store.get("session:ses_parent")).toMatchObject({ iteration: 1, childID: "child_2" })
-
-    h.setMessages("child_2", [{ type: "assistant", content: [{ type: "text", text: "done DONE" }] }])
-    await h.idle({ sessionID: "child_2", background: [] })
-
-    expect(h.children).toHaveLength(2)
     expect(h.store.get("session:ses_parent")).toMatchObject({ status: "done" })
   })
 
   test("max-iterations 1 para depois da primeira sessão", async () => {
     const h = harness()
     await plugin.setup(h.ctx)
+    h.setMessages("child_1", [{ type: "assistant", content: [{ type: "text", text: "working" }] }])
     await h.commands.get("ralph-loop")!.execute({
       sessionID: "ses_one",
       prompt: { text: "task --max-iterations 1" },
       delivery: "steer",
     })
-    h.setMessages("child_1", [{ type: "assistant", content: [{ type: "text", text: "working" }] }])
-    await h.idle({ sessionID: "child_1", background: [] })
+    await new Promise((resolve) => setTimeout(resolve, 20))
 
     expect(h.children).toHaveLength(1)
     expect(h.store.get("session:ses_one")).toMatchObject({ status: "paused" })
@@ -112,10 +104,15 @@ describe("ralph-loop plugin", () => {
   test("cancelar interrompe a sessão filha e remove o estado", async () => {
     const h = harness()
     await plugin.setup(h.ctx)
-    await h.commands.get("ralph-loop")!.execute({
-      sessionID: "ses_cancel",
-      prompt: { text: "task" },
-      delivery: "steer",
+    h.store.set("session:ses_cancel", {
+      version: 1,
+      prompt: "task",
+      completion: "",
+      maxIterations: 3,
+      iteration: 0,
+      status: "active",
+      boot: "any",
+      childID: "child_9",
     })
     await h.commands.get("cancel-ralph")!.execute({
       sessionID: "ses_cancel",
@@ -123,7 +120,7 @@ describe("ralph-loop plugin", () => {
       delivery: "steer",
     })
 
-    expect(h.interrupted).toEqual(["child_1"])
+    expect(h.interrupted).toEqual(["child_9"])
     expect(h.store.has("session:ses_cancel")).toBe(false)
   })
 })
